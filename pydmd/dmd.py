@@ -48,8 +48,16 @@ class DMD(DMDBase):
         # Default timesteps
         self.original_time = {'t0': 0, 'tend': n_samples - 1, 'dt': 1}
         self.dmd_time = {'t0': 0, 'tend': n_samples - 1, 'dt': 1}
-        
+
         self._b = self._compute_amplitudes(self._modes, self._snapshots,
                                            self._eigs, self.opt)
 
         return self
+
+    @property
+    def label_for_plots(self):
+        """Defines a name to be used in plotting"""
+        if self.tlsq_rank > 0.0:
+            return 'tls-DMD'
+        else:
+            return 'DMD'
