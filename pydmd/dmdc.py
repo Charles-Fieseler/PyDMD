@@ -86,6 +86,9 @@ class DMDc(DMDBase):
         if controlin.shape[1] != self.dynamics.shape[1]-1:
             raise RuntimeError(
                     'The number of control inputs and the number of snapshots to reconstruct has to be the same')
+        if np.isnan(self.modes).any():
+            print('Modes contain nans; aborting without error')
+            return np.nan * np.zeros_like(self._snapshots)
 
         omega = old_div(np.log(self.eigs), self.original_time['dt'])
         eigs = np.exp(omega * self.dmd_time['dt'])
@@ -145,10 +148,11 @@ class DMDc(DMDBase):
         Ur, sr, Vr = self._compute_svd(Y, -1)
         self._basis = Ur
 
+        reg = 1e-10  # Prevents nan in the reciprocal
         self._Atilde = Ur.T.conj().dot(Y).dot(Vp).dot(
-            np.diag(np.reciprocal(sp))).dot(Up1.T.conj()).dot(Ur)
+            np.diag(np.reciprocal(sp+reg))).dot(Up1.T.conj()).dot(Ur)
         self._Btilde = Ur.T.conj().dot(Y).dot(Vp).dot(
-            np.diag(np.reciprocal(sp))).dot(Up2.T.conj())
+            np.diag(np.reciprocal(sp+reg))).dot(Up2.T.conj())
         self._B = Ur.dot(self._Btilde)
 
         self._eigs, modes = np.linalg.eig(self._Atilde)
@@ -186,3 +190,11 @@ class DMDc(DMDBase):
             self._fit_B_known(X, Y, B)
 
         return self
+    
+    @property
+    def label_for_plots(self):
+        """ Defines a name to be used in plotting"""
+        name = 'DMDc'
+        if self.tlsq_rank > 0.0:
+            name = 'tls-' + name
+        return name
