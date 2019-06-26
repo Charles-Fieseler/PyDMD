@@ -69,3 +69,11 @@ class FbDMD(DMDBase):
                                            self._eigs, self.opt)
 
         return self
+
+    @property
+    def label_for_plots(self):
+        """ Defines a name to be used in plotting"""
+        if self.tlsq_rank > 0.0:
+            return 'tls-fb-DMD'
+        else:
+            return 'fb-DMD'
