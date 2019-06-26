@@ -65,6 +65,14 @@ class DMD(DMDBase):
 
         return self
 
+    @property
+    def label_for_plots(self):
+        """Defines a name to be used in plotting"""
+        if self.tlsq_rank > 0.0:
+            return 'tls-DMD'
+        else:
+            return 'DMD'
+
     def predict(self, X):
         """Predict the output Y given the input X using the fitted DMD model.
 

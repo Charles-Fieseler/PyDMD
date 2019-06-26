@@ -109,6 +109,20 @@ class DMDBase(object):
         :rtype: numpy.ndarray
         """
         return self._eigs
+    
+    @property
+    def is_stable(self):
+        """
+        Calculates whether or not the largest eigenvalue has a magnitude of
+        greater than 1, corresponding to an unstable reconstruction.
+        Update: calculates whether there are nan values in the data
+        reconstruction, which also includes numerical instabilities
+        
+        :return: stability
+        :rtype: boolean
+        """
+#        return max(np.abs(self._eigs)) <= 1.0
+        return not(np.isnan(self.reconstructed_data()).any())
 
     @property
     def dynamics(self):
@@ -121,7 +135,11 @@ class DMDBase(object):
         """
         omega = old_div(np.log(self.eigs), self.original_time['dt'])
         vander = np.exp(np.multiply(*np.meshgrid(omega, self.dmd_timesteps)))
-        return (vander * self._b).T
+        # Maybe this works in python 2, doesn't in 3... fixing it
+#        return (vander * self._b).T
+        for i in range(np.shape(vander)[1]):
+            vander[:,i] = vander[:,i] * self._b[i]
+        return vander.T
 
     @property
     def reconstructed_data(self):
@@ -173,6 +191,14 @@ class DMDBase(object):
         """
         raise NotImplementedError(
             'Subclass must implement abstract method {}.fit'.format(
+                self.__class__.__name__))
+
+    def copy(self):
+        """
+        Abstract method to copy the settings to a new object.
+        """
+        raise NotImplementedError(
+            'Subclass must implement abstract method {}.copy'.format(
                 self.__class__.__name__))
 
     @staticmethod
@@ -330,6 +356,22 @@ class DMDBase(object):
 
         return eigenvalues, eigenvectors
 
+    def _compute_time_delay_embedding(self, delay):
+        """
+        Calculate the time-delay embedded version of the data
+
+        :param int delay: The number of timesteps to use delay. If the original
+            data matrix is n by m, the new matrix will be n*delay by m-delay
+        """
+        dat = self._snapshots
+        n, m = np.shape(dat)
+        delay_dat = np.zeros(n*delay, m-delay)
+        for i in range(delay):
+            delay_dat[i*n:(i*n-1), :] = dat[:, i:-(delay-i)]
+#            delay_dat.append(dat[:, i:-(delay-i)])
+
+        return np.vstack(delay_dat)
+
     def _compute_amplitudes(self, modes, snapshots, eigs, opt):
         """
         Compute the amplitude coefficients. If `opt` is False the amplitudes
@@ -374,7 +416,10 @@ class DMDBase(object):
             # b optimal
             a = np.linalg.solve(P, q)
         else:
-            a = np.linalg.lstsq(modes, snapshots.T[0], rcond=None)[0]
+            b = np.array(snapshots.T[0], ndmin=2) # b should be a column vector
+            if np.shape(b)[0] != np.shape(modes)[0]:
+                b = b.T
+            a = np.linalg.lstsq(modes, b)[0]
 
         return a
 
